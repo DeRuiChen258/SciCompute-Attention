@@ -42,3 +42,17 @@
 - 理由：nvcc 生成的 `cudafe1.cpp` 会输出 GCC 视为扩展的 `#line` 指令，产生大量与代码无关的告警，
   使 `SCI_ATTENTION_WERROR=ON` 无法用于 CUDA 目标。改为 CUDA 侧 `-Wall -Wextra`，宿主侧保留 `-Wpedantic`。
 - 影响：WERROR 构建实测 exit 0。
+
+### D-008 | 2026-09-19 | varlen 入口显式增加 num_seqs 参数
+- 背景：提示词 §6.5 的 `flash_attention_varlen(q,k,v,cu_seqlens_q,cu_seqlens_kv,max_seq_q,max_seq_kv,cfg)`
+  无法确定序列个数（打包张量的 `dim(0)` 是总 token 数，不是序列数）。
+- 决策：在 varlen 入口增加 `int64_t num_seqs`；同时把 `cu_seqlens_*` 明确为**宿主**数组
+  （长度 num_seqs+1），使 `ValidateVarlenHost()` 可以直接校验，避免 D2H 同步。
+- 影响：`IAttentionBackend::ForwardVarlen` 与 5 个后端的签名同步更新；文档记录于 `docs/flash_attention.md` §5。
+
+### D-009 | 2026-09-19 | commit 粒度按"可构建的交付单元"而非严格逐 Phase
+- 背景：提示词要求"每个 Phase 独立 commit，禁止巨型 commit"，同时要求"历史可 bisect"。
+- 观察：Phase 逐条提交会让中间提交引用尚不存在的文件（例如 tests/kernel/CMakeLists.txt 提前登记
+  后续 Phase 的测试目标），从而破坏 bisect 可构建性。
+- 决策：按"每个提交都能配置/编译/测试通过"的交付单元提交（Phase 0、Phase 1、Level 0/1/3 内核、
+  KV/Decode/Paged、Python+Triton、集成与文档），并在 `.agent/state.md` 中逐 Phase 记录完成项与验证证据。

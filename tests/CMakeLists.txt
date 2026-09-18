@@ -8,6 +8,7 @@ target_include_directories(sca_test_common INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_link_libraries(sca_test_common INTERFACE sci_attention GTest::gtest GTest::gtest_main)
+target_compile_definitions(sca_test_common INTERFACE SCA_PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
 
 add_subdirectory(unit)
 
@@ -32,4 +33,3 @@ if(SCI_ATTENTION_HAVE_CUDA)
         endif()
     endforeach()
 endif()
-

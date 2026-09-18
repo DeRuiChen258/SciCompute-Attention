@@ -26,8 +26,9 @@ struct AttentionConfig {
     int64_t num_splits{0};      // decode split-K; 0 => derive from decode_config.hpp
     size_t workspace_limit_bytes{0};  // 0 => derive from DeviceCapability
     bool allow_fallback{false};       // default false: silent degradation is forbidden
-    const int32_t* cu_seqlens_q{nullptr};   // varlen entry (device-resident, length batch+1)
-    const int32_t* cu_seqlens_kv{nullptr};  // varlen entry (device-resident, length batch+1)
+    // varlen entry: host-resident int32 offsets of length num_seqs+1 (see flash_attention_varlen).
+    const int32_t* cu_seqlens_q{nullptr};
+    const int32_t* cu_seqlens_kv{nullptr};
     sci::Stream* stream{nullptr};           // nullptr => sci::Stream::GetCurrent()
 };
 
@@ -52,4 +53,3 @@ SCI_ATTENTION_API sci::Status ValidateVarlenHost(const int32_t* host_cu_seqlens,
                                                  int64_t* max_seq_out = nullptr);
 
 }  // namespace sca
-

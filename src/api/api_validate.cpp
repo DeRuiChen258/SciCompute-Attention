@@ -7,6 +7,8 @@
 #include "scicompute_attention/detail/layout_traits.hpp"
 #include "scicompute_attention/status.hpp"
 
+#include "backends/flash/flash_tile_config.hpp"
+
 namespace sca {
 namespace {
 
@@ -127,40 +129,17 @@ sci::Status Validate(const AttentionConfig& cfg, const AttentionShape& shape,
     return sci::Status::Ok();
 }
 
-namespace {
-
-struct TileEntry {
-    int32_t block_m;
-    int32_t block_n;
-    int32_t warps;
-    int32_t stages;
-};
-
-// Seed table (prompt §7.4.5). Calibrated by tools/tile_sweep.py in Phase 6; docs/tile_config.md
-// records which entries were kept, which were rejected and why. Entries are ordered by
-// preference, and the flash backend validates each one against the smem ceiling before use.
-constexpr TileEntry kFlashTileTable[kNumSupportedHeadDims][3] = {
-    /* D=32  */ {{128, 128, 4, 2}, {128, 64, 4, 3}, {64, 64, 4, 3}},
-    /* D=64  */ {{128, 128, 4, 2}, {128, 64, 4, 2}, {64, 64, 4, 3}},
-    /* D=96  */ {{128, 64, 4, 2}, {64, 64, 4, 2}, {64, 32, 4, 3}},
-    /* D=128 */ {{64, 64, 4, 2}, {128, 32, 8, 2}, {64, 128, 4, 2}},
-    /* D=160 */ {{64, 32, 4, 2}, {64, 16, 4, 2}, {32, 32, 4, 3}},
-    /* D=192 */ {{64, 32, 4, 2}, {32, 32, 4, 2}, {64, 16, 4, 3}},
-    /* D=256 */ {{32, 32, 4, 2}, {64, 16, 8, 2}, {32, 16, 4, 2}},
-};
-
-}  // namespace
-
 TileConfig RecommendTile(const AttentionConfig& cfg, const AttentionShape& shape) {
     (void)cfg;
-    const int idx = SupportedHeadDimIndex(shape.head_dim);
-    if (idx < 0) return TileConfig{};
-    const TileEntry& e = kFlashTileTable[idx][0];
+    // Single source of truth: the flash tile table (src/backends/flash/flash_tile_config.hpp).
+    // The dispatcher reports the same geometry, so Explain() and the kernels can never disagree.
+    const flash::FlashTile* entry = flash::FindFlashTile(shape.head_dim);
+    if (entry == nullptr) return TileConfig{};
     TileConfig tile;
-    tile.block_m = e.block_m;
-    tile.block_n = e.block_n;
-    tile.warps = e.warps;
-    tile.stages = e.stages;
+    tile.block_m = entry->block_m;
+    tile.block_n = entry->block_n;
+    tile.warps = entry->warps;
+    tile.stages = entry->stages;
     tile.use_tma = false;
     return tile;
 }

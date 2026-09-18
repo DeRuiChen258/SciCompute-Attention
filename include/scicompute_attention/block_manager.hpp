@@ -21,6 +21,7 @@ struct BlockTable {
     std::vector<int32_t> host;
     sci::Tensor device;
     uint64_t revision{0};
+    uint64_t synced_revision{0};  // last revision copied to `device`
     int64_t max_num_seqs{0};
     int64_t max_blocks_per_seq{0};
 };
@@ -60,4 +61,3 @@ private:
 };
 
 }  // namespace sca
-

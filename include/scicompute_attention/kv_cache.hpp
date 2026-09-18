@@ -69,6 +69,10 @@ public:
     const KVCacheConfig& Config() const noexcept { return cfg_; }
 
 private:
+    sci::Result<sci::Tensor> GatherInternal(int64_t layer, const int32_t* block_ids,
+                                            int64_t num_blocks, bool is_key,
+                                            sci::Stream* stream) const;
+
     KVCacheConfig cfg_{};
     int64_t layer_elements_{0};
     std::vector<sci::Tensor> k_layers_;
@@ -92,4 +96,3 @@ SCI_ATTENTION_API sci::Result<size_t> KvCacheBytes(const KVCacheConfig& cfg);
 SCI_ATTENTION_API int64_t MaxBlocksForBudget(const KVCacheConfig& cfg, size_t budget_bytes);
 
 }  // namespace sca
-

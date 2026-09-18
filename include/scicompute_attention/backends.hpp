@@ -38,8 +38,8 @@ public:
                                                  const AttentionConfig& cfg) const = 0;
     virtual sci::Result<AttentionResult> ForwardVarlen(
         const sci::Tensor& q, const sci::Tensor& k, const sci::Tensor& v,
-        const int32_t* cu_seqlens_q, const int32_t* cu_seqlens_kv, int64_t max_seq_q,
-        int64_t max_seq_kv, const AttentionConfig& cfg) const = 0;
+        int64_t num_seqs, const int32_t* cu_seqlens_q, const int32_t* cu_seqlens_kv,
+        int64_t max_seq_q, int64_t max_seq_kv, const AttentionConfig& cfg) const = 0;
 };
 
 // Backend lookup. Never returns nullptr: unknown kinds resolve to the naive backend, and
@@ -53,4 +53,3 @@ SCI_ATTENTION_API const char* BackendTypeName(BackendKind kind) noexcept;
 SCI_ATTENTION_API bool ParseBackendName(const char* name, BackendKind* out) noexcept;
 
 }  // namespace sca
-

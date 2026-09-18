@@ -103,6 +103,9 @@ TEST(DispatchTest, ExplainRendersTileAndWorkspace) {
 TEST(DispatchTest, RecommendTileMatchesHeadDim) {
     const sca::AttentionDispatcher dispatcher;
     EXPECT_EQ(dispatcher.Select(sca::AttentionConfig{}, Shape(1024, 1024, 128)).tile.block_m, 64);
-    EXPECT_EQ(dispatcher.Select(sca::AttentionConfig{}, Shape(1024, 1024, 64)).tile.block_m, 128);
+    EXPECT_EQ(dispatcher.Select(sca::AttentionConfig{}, Shape(1024, 1024, 64)).tile.block_m, 64);
     EXPECT_EQ(dispatcher.Select(sca::AttentionConfig{}, Shape(1024, 1024, 256)).tile.block_m, 32);
+    // head_dim > 128 splits the output dimension across warp pairs (see flash_tile_config.hpp).
+    EXPECT_EQ(dispatcher.Select(sca::AttentionConfig{}, Shape(1024, 1024, 192)).tile.warps, 8);
+    EXPECT_EQ(dispatcher.Select(sca::AttentionConfig{}, Shape(1024, 1024, 128)).tile.warps, 4);
 }

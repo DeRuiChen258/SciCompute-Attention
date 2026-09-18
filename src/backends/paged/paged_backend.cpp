@@ -38,8 +38,8 @@ public:
     }
 
     sci::Result<AttentionResult> ForwardVarlen(const sci::Tensor&, const sci::Tensor&,
-                                               const sci::Tensor&, const int32_t*, const int32_t*,
-                                               int64_t, int64_t,
+                                               const sci::Tensor&, int64_t, const int32_t*,
+                                               const int32_t*, int64_t, int64_t,
                                                const AttentionConfig&) const override {
         return sci::MakeUnexpected<AttentionResult>(
             MakeStatus(AttnStatusCode::kUnsupportedFeature, kNotImplementedReason));

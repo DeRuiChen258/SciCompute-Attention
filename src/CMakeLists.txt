@@ -7,10 +7,14 @@ set(SCI_ATTENTION_HOST_SOURCES
     api/status.cpp
     api/api_validate.cpp
     api/attention_api.cpp
+    kv_cache/kv_cache.cpp
+    kv_cache/block_manager.cpp
+    kv_cache/paged_kv_cache.cpp
     runtime/capability.cpp
     runtime/workspace.cpp
     runtime/dispatcher.cpp
     runtime/backend_lookup.cpp
+    runtime/scratch_pool.cpp
     backends/naive/naive_backend.cpp
     backends/tiled/tiled_backend.cpp
     backends/flash/flash_backend.cpp
@@ -23,6 +27,10 @@ if(SCI_ATTENTION_HAVE_CUDA)
     set(SCI_ATTENTION_KERNEL_SOURCES
         runtime/device_probe.cu
         runtime/launcher.cu
+        backends/naive/attention_naive.cu
+        backends/tiled/attention_tiled.cu
+        backends/flash/flash_fwd_launch.cu
+        kv_cache/kv_cache_kernels.cu
     )
 else()
     list(APPEND SCI_ATTENTION_HOST_SOURCES runtime/device_probe_stub.cpp)
@@ -30,7 +38,9 @@ endif()
 
 if(SCI_ATTENTION_HAVE_CUDA)
     add_library(sci_attention_kernels STATIC ${SCI_ATTENTION_KERNEL_SOURCES})
-    target_include_directories(sci_attention_kernels PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(sci_attention_kernels PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../include")
     target_compile_definitions(sci_attention_kernels PUBLIC ${SCI_ATTENTION_ARCH_DEFS})
     target_compile_options(sci_attention_kernels PRIVATE ${SCI_ATTENTION_CUDA_WARNINGS})
 else()
