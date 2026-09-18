@@ -133,10 +133,14 @@ DispatchDecision AttentionDispatcher::Select(const AttentionConfig& cfg,
               std::to_string(shape.seq_kv) + " >= " + std::to_string(th.decode_min_seq_kv) +
               " => decode (low arithmetic intensity)";
     } else if (shape.seq_q * 8 <= shape.seq_kv && shape.seq_kv >= th.decode_min_seq_kv) {
-        preferred = BackendKind::kDecode;
+        // Grouped small-q (S_q in 2..8) has enough arithmetic intensity for the tiled MMA path, and
+        // the decode kernel is specialised for S_q == 1, so it is routed to flash here. This is the
+        // seed rule of dispatch_table.inc r0; the sweep may refine the boundary.
+        preferred = BackendKind::kFlash;
         prefix = "auto";
         why = "seq_q*8=" + std::to_string(shape.seq_q * 8) + " <= seq_kv=" +
-              std::to_string(shape.seq_kv) + " => grouped decode";
+              std::to_string(shape.seq_kv) + " => grouped small-q prefill on flash "
+              "(decode kernel is S_q=1 only)";
     } else if (shape.seq_kv <= th.tiled_max_seq_kv) {
         preferred = BackendKind::kTiled;
         prefix = "auto";

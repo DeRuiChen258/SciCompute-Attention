@@ -41,3 +41,22 @@ Phase 2：`src/backends/naive/*`（QKᵀ / mask+scale / 行 softmax / PV 四个 
   - `-DSCI_ATTENTION_WERROR=ON` 构建 → exit 0（零警告）
   - `./build/examples/example_attention` → 正确打印 Explain 与各后端未实现原因（exit 3，符合 Phase 1 预期）
 
+
+## Phase 7/8/9 完成明细（KV Cache / Decode / Paged）
+
+- KV Cache：`src/kv_cache/{kv_cache.cpp,kv_cache_kernels.cu,block_manager.cpp,paged_kv_cache.cpp}`；
+  block-major 布局、LIFO free list、page table 按 revision 增量上卡、容量耗尽状态不变。
+- Decode：`src/backends/decode/{decode_splitk.cu,decode_config.hpp,decode_backend.cpp}`；
+  split-K ∈ {1,2,3,4,8,16}，warp 内 lane 分片 + 稳定合并公式。
+- Paged：`src/backends/paged/{page_table.cuh,paged_attention.cu,paged_backend.cpp}`；
+  复用同一套 split-K kernel，仅把 K/V 寻址换成 page table 查表（零拷贝复用）。
+- 验证证据：
+  - `bash scripts/test.sh` → 13/13 CTest 通过（unit 5 + kernel 5 + kv 3）
+  - `compute-sanitizer --tool memcheck ./build/tests/kernel/test_decode_correctness` → ERROR SUMMARY: 0 errors
+  - 乱序 page：`PagedAttentionCorrectness.PhysicalBlocksAreOutOfOrder` 断言物理块非连续且结果与 FP64 参考一致
+- 契约补充：
+  - `KVCache::Append/Reset/Gather*` 的 `slot_mapping`/`block_ids` 必须是**设备指针**（避免隐藏同步）；
+  - `PagedAttentionParams::layer` 新增（多 layer KV 下层号无法从参数推断，见 D-010）。
+- 已知限制：
+  - decode 只处理 S_q=1；2..8 的 small-q 走 flash（dispatch 表 r0 已如此路由）；
+  - `PagedKVCache::AppendTokens` 每次 append 会上传 4 B/token 的 slot mapping（H2D）。

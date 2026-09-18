@@ -5,6 +5,8 @@ set(SCA_KERNEL_TESTS
     test_naive_correctness.cu
     test_tiled_correctness.cu
     test_flash_correctness.cu
+    test_decode_correctness.cu
+    test_paged_correctness.cu
 )
 
 foreach(_test ${SCA_KERNEL_TESTS})

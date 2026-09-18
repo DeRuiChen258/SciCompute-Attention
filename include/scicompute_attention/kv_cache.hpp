@@ -47,17 +47,22 @@ public:
 
     static sci::Result<KVCache> Create(const KVCacheConfig& cfg, sci::Device& device);
 
-    // k_new/v_new: [num_tokens, num_kv_heads, head_dim]; slot_mapping: [num_tokens], where
-    // slot = physical_block * block_size + offset_in_block.
+    // k_new/v_new: [num_tokens, num_kv_heads, head_dim] (device-resident);
+    // slot_mapping: [num_tokens] **device-resident** int32, where
+    //   slot = physical_block * block_size + offset_in_block, and slot < 0 means "do not store".
+    // Device-resident pointers keep the call free of hidden synchronisation (prompt §9.5); use
+    // ComputeSlotMapping + a device tensor to prepare them.
     sci::Status Append(int64_t layer, const sci::Tensor& k_new, const sci::Tensor& v_new,
                        const int32_t* slot_mapping, int64_t num_tokens, sci::Stream* stream);
 
-    // Debug/test only: gathers logical blocks into a contiguous tensor. Not on the inference path.
+    // Debug/test only: gathers logical blocks into a contiguous tensor. `block_ids` is
+    // device-resident int32 (length num_blocks). Not on the inference path.
     sci::Result<sci::Tensor> GatherK(int64_t layer, const int32_t* block_ids, int64_t num_blocks,
                                      sci::Stream* stream) const;
     sci::Result<sci::Tensor> GatherV(int64_t layer, const int32_t* block_ids, int64_t num_blocks,
                                      sci::Stream* stream) const;
 
+    // Zeroes the K/V data of the given blocks; `block_ids` is device-resident int32.
     sci::Status Reset(const int32_t* block_ids, int64_t num_blocks, sci::Stream* stream);
 
     const sci::Tensor& K(int64_t layer) const;

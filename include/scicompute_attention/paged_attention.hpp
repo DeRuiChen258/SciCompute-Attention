@@ -15,6 +15,9 @@ struct PagedAttentionParams {
     int64_t num_seqs{0};
     int64_t block_size{16};
     int64_t max_blocks_per_seq{0};
+    // Which KV layer to attend over. The prompt's struct omits it, but a multi-layer KV cache makes
+    // the layer ambiguous (see .agent/decisions.md D-010); 0 keeps single-layer call sites working.
+    int64_t layer{0};
 };
 
 // Level 5: paged attention over non-contiguous KV pages.
@@ -29,4 +32,3 @@ SCI_ATTENTION_API sci::Result<AttentionResult> paged_attention(const sci::Tensor
                                                                const AttentionConfig& cfg);
 
 }  // namespace sca
-

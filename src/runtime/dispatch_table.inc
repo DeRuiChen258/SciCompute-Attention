@@ -28,7 +28,7 @@ struct DispatchThresholds {
 };
 
 inline constexpr DispatchThresholds kDispatchThresholds{
-    /* decode_max_seq_q   */ 8,
+    /* decode_max_seq_q   */ 1,
     /* decode_min_seq_kv  */ 256,
     /* tiled_max_seq_kv   */ 128,
     /* tokens_per_split   */ 512,
@@ -38,4 +38,3 @@ inline constexpr DispatchThresholds kDispatchThresholds{
 
 }  // namespace detail
 }  // namespace sca
-

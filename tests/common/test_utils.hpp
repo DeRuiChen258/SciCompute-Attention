@@ -157,6 +157,17 @@ inline sci::Tensor MakeDeviceTensor(const std::vector<sci::index_t>& dims, sci::
     return MakeDeviceTensorFromBytes(dims, dtype, encoded.bytes, device);
 }
 
+// Uploads an int32 vector as a 1-D device tensor (for slot mappings / block id lists, which the KV
+// kernels consume as device pointers).
+inline sci::Tensor MakeDeviceInt32(const std::vector<int32_t>& values, sci::Device& device) {
+    const sci::TensorShape shape({static_cast<sci::index_t>(values.size())});
+    sci::Tensor host(shape, sci::DType::kInt32, HostDevice());
+    host.copy_from(values.data(), values.size() * sizeof(int32_t));
+    sci::Tensor dev(shape, sci::DType::kInt32, device);
+    dev.copy_from(host);
+    return dev;
+}
+
 // Reads back a device tensor (or any tensor) and dequantizes it to float.
 inline std::vector<float> ReadToFloat(const sci::Tensor& tensor) {
     const size_t elements = static_cast<size_t>(tensor.num_elements());

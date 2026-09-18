@@ -57,6 +57,10 @@ private:
     std::vector<std::vector<int32_t>> seq_blocks_;
     std::vector<int32_t> page_table_host_;
     sci::Tensor page_table_device_;
+    // Reusable device buffer for the freshly computed slot mapping (see AppendTokens): the kernel
+    // needs device-resident slots, so the host-side mapping is uploaded once per append.
+    sci::Tensor slot_mapping_device_;
+    int64_t slot_mapping_capacity_{0};
     uint64_t revision_{0};
     uint64_t synced_revision_{0};
     int64_t num_appends_{0};

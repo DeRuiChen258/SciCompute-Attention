@@ -31,6 +31,8 @@ if(SCI_ATTENTION_HAVE_CUDA)
         backends/tiled/attention_tiled.cu
         backends/flash/flash_fwd_launch.cu
         kv_cache/kv_cache_kernels.cu
+        backends/decode/decode_splitk.cu
+        backends/paged/paged_attention.cu
     )
 else()
     list(APPEND SCI_ATTENTION_HOST_SOURCES runtime/device_probe_stub.cpp)

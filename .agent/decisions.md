@@ -56,3 +56,8 @@
   后续 Phase 的测试目标），从而破坏 bisect 可构建性。
 - 决策：按"每个提交都能配置/编译/测试通过"的交付单元提交（Phase 0、Phase 1、Level 0/1/3 内核、
   KV/Decode/Paged、Python+Triton、集成与文档），并在 `.agent/state.md` 中逐 Phase 记录完成项与验证证据。
+
+### D-010 | 2026-09-19 | PagedAttentionParams 增加 layer 字段
+- 背景：提示词 §6.9 的结构体没有层号，但 `PagedKVCache` 是多层 KV（`num_layers`），注意力按层执行。
+- 决策：新增 `int64_t layer{0}`；默认 0 保持单层调用点可用。校验层号并在越界时返回 `kShapeMismatch`。
+- 影响：`paged_attention(q, kv, params, cfg)` 与 `docs/paged_kv_cache.md` 记录该字段。

@@ -32,14 +32,15 @@ TEST(DispatchTest, DecodeForSingleQueryToken) {
     EXPECT_NE(decision.reason.find("table=r0"), std::string::npos);
 }
 
-TEST(DispatchTest, DecodeForSmallQueryGroup) {
+TEST(DispatchTest, GroupedSmallQueryGoesToFlash) {
     const sca::AttentionDispatcher dispatcher;
-    // seq_q=16 exceeds decode_max_seq_q(8) but 16*8 = 128 <= seq_kv=4096, so the grouped-decode
-    // rule (prompt §9.1 row 2) applies.
+    // seq_q=16 exceeds decode_max_seq_q(1) but 16*8 = 128 <= seq_kv=4096, so the grouped small-q
+    // rule applies. The decode kernel is S_q=1 only (documented in docs/prefill_decode.md), hence
+    // the flash backend.
     const sca::DispatchDecision decision =
         dispatcher.Select(sca::AttentionConfig{}, Shape(16, 4096));
-    EXPECT_EQ(decision.backend, sca::BackendKind::kDecode);
-    EXPECT_NE(decision.reason.find("grouped decode"), std::string::npos);
+    EXPECT_EQ(decision.backend, sca::BackendKind::kFlash);
+    EXPECT_NE(decision.reason.find("grouped small-q"), std::string::npos);
 }
 
 TEST(DispatchTest, FlashForPrefill) {

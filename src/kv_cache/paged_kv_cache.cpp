@@ -92,13 +92,16 @@ sci::Status PagedKVCache::AppendTokens(int64_t seq_id, int64_t layer,
         new_blocks = std::move(*allocated);
     }
 
-    sci::Status status = blocks_.AppendToTable(seq_id, new_blocks.data(),
-                                               static_cast<int64_t>(new_blocks.size()));
-    if (!status.ok()) {
-        blocks_.Free(new_blocks.data(), static_cast<int64_t>(new_blocks.size()));
-        return status;
+    sci::Status status = sci::Status::Ok();
+    if (!new_blocks.empty()) {
+        status = blocks_.AppendToTable(seq_id, new_blocks.data(),
+                                       static_cast<int64_t>(new_blocks.size()));
+        if (!status.ok()) {
+            blocks_.Free(new_blocks.data(), static_cast<int64_t>(new_blocks.size()));
+            return status;
+        }
+        for (const int32_t block : new_blocks) owned.push_back(block);
     }
-    for (const int32_t block : new_blocks) owned.push_back(block);
 
     // Refresh the host page table row for this sequence.
     int32_t* row = page_table_host_.data() + seq_id * max_blocks_per_seq_;
@@ -109,7 +112,25 @@ sci::Status PagedKVCache::AppendTokens(int64_t seq_id, int64_t layer,
         ComputeSlotMapping(row, current_len, num_new, cfg_.block_size, max_blocks_per_seq_);
     if (!slots.ok()) return slots.error();
 
-    status = storage_.Append(layer, k_new, v_new, slots->data(), num_new, stream);
+    // The KV append kernel consumes device-resident slots; upload the freshly computed mapping.
+    // This is a 4 B per token H2D copy on the append path (documented in docs/kv_cache.md); a future
+    // scheduler-driven variant will let the caller supply device-side slots directly.
+    if (slot_mapping_capacity_ < num_new) {
+        const int64_t capacity = std::max<int64_t>(num_new, 1024);
+        slot_mapping_device_ = sci::Tensor(sci::TensorShape({capacity}), sci::DType::kInt32,
+                                           storage_.K(0).device());
+        if (slot_mapping_device_.data() == nullptr) {
+            return MakeStatus(AttnStatusCode::kKVCapacityExceeded,
+                              "PagedKVCache: slot-mapping buffer allocation failed");
+        }
+        slot_mapping_capacity_ = capacity;
+    }
+    storage_.K(0).device().copy_to_device(slot_mapping_device_.data(), slots->data(),
+                                          static_cast<size_t>(num_new) * sizeof(int32_t));
+
+    status = storage_.Append(layer, k_new, v_new,
+                             static_cast<const int32_t*>(slot_mapping_device_.data()), num_new,
+                             stream);
     if (!status.ok()) {
         // The blocks are already attached to the sequence; the caller can ResetSeq to recover.
         return status;
