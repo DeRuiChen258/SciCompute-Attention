@@ -1,0 +1,9 @@
+gpu__time_duration.sum
+gpu__dram_throughput.avg.pct_of_peak_sustained_elapsed
+sm__warps_active.avg.pct_of_peak_sustained_active
+lts__throughput.avg.pct_of_peak_sustained_elapsed
+launch__registers_per_thread
+smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct
+dram__bytes.sum
+lts__t_sectors.sum
+

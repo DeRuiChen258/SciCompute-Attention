@@ -60,3 +60,30 @@ Phase 2：`src/backends/naive/*`（QKᵀ / mask+scale / 行 softmax / PV 四个 
 - 已知限制：
   - decode 只处理 S_q=1；2..8 的 small-q 走 flash（dispatch 表 r0 已如此路由）；
   - `PagedKVCache::AppendTokens` 每次 append 会上传 4 B/token 的 slot mapping（H2D）。
+
+## Phase 6 / 12 / 12.5 / 13 完成明细
+
+- Benchmark：`benchmarks/benchmark_attention.cu`（flash/tiled/decode，复用同一 harness）、
+  `benchmarks/benchmark_sdpa.py`（torch 三后端显式指定）；原始数据落盘
+  `benchmarks/results/2026-09-19-51f877e/{attention_main.json,sdpa.json}`。
+- Profiling：`profiling/{profile_flash,profile_decode,profile_naive}.sh`、`analyze_ncu.py`、
+  `metrics/*.txt`；compute-sanitizer 零错误证据见 `docs/results/profiling_summary.md`。
+- 模型对接：`tools/gguf_reader.py`（纯 Python GGUF v3 + Q8_0/F16/F32 反量化）、
+  `tools/model_probe.py` → `docs/results/qwen3_4b_shapes.json`（36/32/8/128/2560/5e6/262144，398 tensors，
+  144 KiB/token KV）。
+- Rollout：`examples/rollout_engine_stub.cpp`（真实 flash + paged kernel）实测
+  prefill P50 0.245 ms / decode P50 0.020 ms（4 序列批处理）/ 11204 tokens/s。
+- 文档：README（21 节）+ docs/ 共 22 篇（architecture/attention_math/online_softmax/flash_attention/
+  kernel_design/tile_config/memory_hierarchy/kv_cache/paged_kv_cache/prefill_decode/benchmarking/
+  profiling/roofline/numerical_stability/model_integration/rollout_interface/vllm_integration/
+  upstream_relationship/troubleshooting/triton_optimization/00-recon/env_report）+ docs/results/*。
+- 工具：`tools/smem_calc.py`（与 kernel static_assert 同公式）、`tools/dispatch_threshold_sweep.py`。
+- 最终验证：`bash scripts/test.sh` → 14/14 通过；`./build/examples/example_attention` → auto 选择 flash 成功。
+
+## 未完成项（已在 README §18 与对应文档显式声明）
+
+1. Triton 双轨（`docs/triton_optimization.md`）——本次未实现，无任何未测量数字。
+2. Python `_core`（pybind11）绑定——本次未实现（CMake 已预留 `src/bindings/` 与开关）。
+3. vLLM(C++) 适配层与 A/B（`docs/vllm_integration.md`）——接口契约已冻结，未落地实现。
+4. 真实权重 Q/K/V parity（`docs/model_integration.md` §7）——需要逐层反量化 + RoPE 前向。
+5. ncu/nsys 原始采集——脚本就绪，需 GPU 空闲时运行；未采集项已标注。

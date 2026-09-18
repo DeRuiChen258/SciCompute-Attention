@@ -4,4 +4,7 @@ if(SCI_ATTENTION_HAVE_CUDA)
     add_executable(example_decode_loop example_decode_loop.cu)
     target_link_libraries(example_decode_loop PRIVATE sci_attention)
     target_compile_definitions(example_decode_loop PRIVATE ${SCI_ATTENTION_ARCH_DEFS})
+
+    add_executable(rollout_engine_stub rollout_engine_stub.cpp)
+    target_link_libraries(rollout_engine_stub PRIVATE sci_attention)
 endif()

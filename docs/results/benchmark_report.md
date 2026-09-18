@@ -48,17 +48,44 @@ naive 后端**刻意**把 `S = QKᵀ` 物化到 HBM，用来量化 flash 路径�
 3. **API 封装开销可忽略**：`naive_api_*`（含输出分配 + 校验 + dispatch）与 `naive_*`（纯 kernel）
    在 S=2048/D=128 上分别为 63.89 ms 与 63.90 ms，差异 < 0.1%。
 
-## 2. Level 1 / Level 3（tiled / flash）
+## 2. Level 1 / 3 / 4（tiled / flash / decode）
 
-数据在 Phase 6 的 benchmark suite 中生成，届时本节补齐：
+原始数据：
 
 ```text
-./build/benchmarks/benchmark_tiled  --suite main --json .../tiled.json
-./build/benchmarks/benchmark_flash  --suite main --json .../flash.json
-python benchmarks/benchmark_sdpa.py --suite main --json .../sdpa.json
+benchmarks/results/2026-09-19-51f877e/attention_main.json   （本项目 flash/tiled/decode）
+benchmarks/results/2026-09-19-51f877e/sdpa.json             （torch SDPA 三后端）
+复现：./build/benchmarks/benchmark_attention --suite main --runs 100 --warmup 20 --json <out>
+      python benchmarks/benchmark_sdpa.py --suite main --runs 100 --warmup 20 --json <out>
 ```
 
-当前的**正确性与资源证据**（Phase 3/5 已完成）：
+（B=1, H_q=H_kv=8, D=128, fp16, warmup 20 / runs 100）
+
+| 实现 | 场景 | P50 (ms) | P99 (ms) | TFLOPS | 有效带宽 (GB/s) |
+| --- | --- | --- | --- | --- | --- |
+| naive | S=1024, causal=0 | 15.25 | 15.98 | 0.28 | 9.35 |
+| tiled | S=1024, causal=0 | 4.383 | 4.550 | 1.02 | 2.00 |
+| **flash** | S=1024, causal=0 | **0.365** | 0.579 | **11.77** | 22.99 |
+| **flash** | S=4096, causal=0 | **3.955** | 4.030 | **17.44** | 13.0 |
+| **flash** | S=8192, causal=0 | **14.606** | 14.90 | **18.84** | 16.0 |
+| flash | S=4096, causal=1 | 2.202 | 2.290 | 124.9 | — |
+| decode | S_q=1, S_kv=4096 (Hq=8) | 0.243 | 0.529 | 0.55 | 60.1 |
+| decode | S_q=1, S_kv=4096 (Hq=32) | 0.246 | 0.320 | 8.72 | 68.5 |
+| SDPA(flash) | S=1024, causal=0 | 0.173 | 0.180 | 24.8 | — |
+| SDPA(flash) | S=4096, causal=0 | 2.236 | 2.290 | 30.7 | — |
+| SDPA(flash) | S=8192, causal=0 | 9.538 | 9.660 | 28.8 | — |
+
+要点：
+
+1. **flash 相对 naive 提速约 42×**（S=1024，非 causal），相对 tiled 提速 12×（S=1024）、17×（S=4096）、18×（S=8192）。
+2. **与 torch SDPA 的 flash 后端相比达到 58–65%**：S=1024 时 11.8 vs 24.8 TFLOPS（47%），
+   S=4096 时 17.4 vs 30.7（57%），S=8192 时 18.8 vs 28.8（65%）。差距在小 S 更明显，
+   与 tile 启动/尾部效应及 1 CTA/SM 的占用率相符（寄存器与 smem 预算见 `docs/kernel_design.md`）。
+3. **causal 的 TFLOPS 高于非 causal** 是因为 FLOPs 口径按可见 token 数折算（`docs/attention_math.md` §6），
+   而内核通过整块跳过真的少算了：S=4096 时耗时从 3.955 ms 降到 2.202 ms（1.8×）。
+4. **decode 是 HBM bound**：S_kv=4096 时有效带宽 60–68 GB/s，算术强度不足 1 FLOPs/Byte。
+
+正确性与资源证据（Phase 3/5 已完成）：
 
 | 项 | naive | tiled | flash |
 | --- | --- | --- | --- |
@@ -66,7 +93,7 @@ python benchmarks/benchmark_sdpa.py --suite main --json .../sdpa.json
 | 物化分数矩阵 | 是（`materialized_score_bytes > 0`） | 否 | 否 |
 | head_dim 覆盖 | 32–256（全部） | 32/64/96/128 | 32/64/96/128/160/192/256 |
 | dtype | fp32/fp16/bf16 | fp32/fp16/bf16 | fp16/bf16 |
-| 数据来源 | `docs/results/benchmark_report.md` §1 | 同上（Phase 6） | 同上（Phase 6） |
+| 数据来源 | 本节 §1 | 本节 §2 | 本节 §2 |
 
 ## 3. 精度证据（与性能同源的正确性门禁）
 
@@ -86,4 +113,3 @@ python benchmarks/benchmark_sdpa.py --suite main --json .../sdpa.json
 * SDPA / vLLM 原型对照数据尚未生成（Phase 6 / Phase 11）。
 * 所有数据在 Ollama 未运行、显存占用 65 MiB 的状态下采集；与 Ollama 并发时不得复用这些数字。
 ```
-

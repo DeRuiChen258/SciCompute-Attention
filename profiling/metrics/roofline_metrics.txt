@@ -1,0 +1,10 @@
+gpu__time_duration.sum
+sm__throughput.avg.pct_of_peak_sustained_elapsed
+gpu__dram_throughput.avg.pct_of_peak_sustained_elapsed
+dram__bytes.sum
+lts__t_sectors.sum
+sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active
+launch__registers_per_thread
+launch__shared_mem_per_block_dynamic
+sm__warps_active.avg.pct_of_peak_sustained_active
+

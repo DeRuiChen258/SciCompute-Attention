@@ -6,7 +6,7 @@ if(SCI_ATTENTION_HAVE_BENCHMARK)
 endif()
 
 if(SCI_ATTENTION_HAVE_CUDA)
-    foreach(_bench benchmark_naive)
+    foreach(_bench benchmark_naive benchmark_attention)
         add_executable(${_bench} ${_bench}.cu)
         target_link_libraries(${_bench} PRIVATE sci_attention)
         target_include_directories(${_bench} PRIVATE
