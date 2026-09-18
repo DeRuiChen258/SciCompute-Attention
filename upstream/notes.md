@@ -77,3 +77,22 @@
 - 本项目做法：不改上游；`examples/rollout_engine_stub.cpp` 直接链接本项目，演示 rollout 形态。
 - 状态：已登记。
 
+
+### UP-008: 上游 CMakeLists 使用 `${CMAKE_SOURCE_DIR}`，无法安全嵌套 `add_subdirectory`
+- 证据：`SciComputeInfra/src/tensor/CMakeLists.txt:5`、`src/core/CMakeLists.txt:3`、`src/math/CMakeLists.txt:8`、
+  `src/device/CMakeLists.txt:7`、`cuda/CMakeLists.txt:25`、`examples/CMakeLists.txt:6-9` 均使用
+  `${CMAKE_SOURCE_DIR}/...`。
+- 实测：在被本项目 `add_subdirectory` 后，子目录里的 `project()` 会把 `CMAKE_SOURCE_DIR` 重新指向包含工程的顶层
+  目录，于是上游的 include 目录与源文件路径解析到本仓，配置失败（原始报错见下）。用中间 wrapper 目录
+  `set(CMAKE_SOURCE_DIR ...)` 覆盖同样无效（被嵌套 `project()` 重置）。
+  ```text
+  CMake Error at SciComputeInfra/src/bridges/CMakeLists.txt:17 (add_library):
+    No SOURCES given to target: sci_bridges
+  CMake Error at SciComputeInfra/examples/CMakeLists.txt:5 (add_executable):
+    No SOURCES given to target: bridge_demo_gpu
+  ```
+- 建议：上游把 `${CMAKE_SOURCE_DIR}` 换成 `${PROJECT_SOURCE_DIR}` 或 `${CMAKE_CURRENT_SOURCE_DIR}`；
+  并给 `examples/`、`cuda/` 增加可关闭的 option。
+- 本项目做法：不修改上游；`cmake/SciComputeInfra.cmake` 的 SOURCE 模式只读引用上游源文件，
+  编译成 `sci_device/sci_memory/sci_tensor/sci_math/sci_benchmark` 精确目标（见 `.agent/decisions.md` D-006）。
+- 状态：已登记；如需上游修复可提 patch，但默认不应用。

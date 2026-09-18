@@ -1,0 +1,7 @@
+if(SCI_ATTENTION_HAVE_CUDA)
+    add_executable(example_attention example_attention.cpp)
+    target_link_libraries(example_attention PRIVATE sci_attention)
+    add_executable(example_decode_loop example_decode_loop.cu)
+    target_link_libraries(example_decode_loop PRIVATE sci_attention)
+    target_compile_definitions(example_decode_loop PRIVATE ${SCI_ATTENTION_ARCH_DEFS})
+endif()

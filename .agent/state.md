@@ -1,10 +1,10 @@
 # Agent State
 
-> 更新时间：2026-09-19（Phase 0 结束）
+> 更新时间：2026-09-19（Phase 1 结束）
 
 ## 当前阶段
 
-Phase 0（审计上游 + 环境侦察）已完成，Phase 1（工程骨架与公共 API）进行中。
+Phase 1（工程骨架与公共 API）已完成，Phase 2（Naive Attention，Level 0）进行中。
 
 ## 已完成
 
@@ -18,9 +18,26 @@ Phase 0（审计上游 + 环境侦察）已完成，Phase 1（工程骨架与公
 
 ## 下一步
 
-Phase 1：CMake 构建骨架（`cmake/*.cmake`）、公共 API 头文件、`src/runtime/*` 骨架、`tests/unit/*`。
+Phase 2：`src/backends/naive/*`（QKᵀ / mask+scale / 行 softmax / PV 四个 kernel）+ 
+`tests/kernel/test_naive_correctness.cu` + `benchmark_naive.cu`。
 
 ## 阻塞
 
 无。
+
+## Phase 1 完成明细
+
+- CMake：`CMakeLists.txt` + `cmake/{SciAttentionOptions,SciAttentionArch,SciComputeInfra,SciAttentionDeps}.cmake`；
+  警告策略、WERROR 开关、安装规则、配置摘要已就位。
+- 上游集成：因上游 CMake 全部使用 `${CMAKE_SOURCE_DIR}`（实验证明嵌套 `add_subdirectory` 会错解析），
+  改为「只读引用上游源文件 + 精确目标」的 SOURCE 模式（UP-008，`.agent/decisions.md` D-006）。
+- 公共 API：18 个头文件 + `detail/*` 辅助头全部落地并可单独包含。
+- 运行时：`capability`（探测+缓存）、`workspace`（256B 切片+越界检测）、`launcher`（smem 属性缓存+错误检查）、
+  `dispatcher`（表驱动选择 + Explain + 回退链）、`backend_lookup`。
+- 验证证据：
+  - `bash scripts/configure.sh --build-type Release && bash scripts/build.sh -j32` → exit 0
+  - `bash scripts/test.sh` → 5/5 CTest 通过（unit 标签）
+  - `bash scripts/configure.sh --stub --build-dir build-stub && bash scripts/build.sh --build-dir build-stub` → exit 0，CPU-only 模式下单测同样 5/5
+  - `-DSCI_ATTENTION_WERROR=ON` 构建 → exit 0（零警告）
+  - `./build/examples/example_attention` → 正确打印 Explain 与各后端未实现原因（exit 3，符合 Phase 1 预期）
 
