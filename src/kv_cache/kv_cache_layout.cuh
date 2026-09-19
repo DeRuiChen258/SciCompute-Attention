@@ -10,7 +10,13 @@
 
 #include <cstdint>
 
+#if defined(SCI_ATTENTION_INFRA_STUB)
+// STUB mode has no CUDA headers: the annotations degrade to nothing.
+#define SCA_HDI inline
+#else
 #include <cuda_runtime.h>  // __host__ / __device__ annotations
+#define SCA_HDI __host__ __device__ __forceinline__
+#endif
 
 namespace sca {
 namespace cuda {
@@ -23,7 +29,7 @@ struct KVCacheShape {
 };
 
 // Offset (in elements) of one (block, offset_in_block, head, dim) element inside one layer.
-__host__ __device__ __forceinline__ int64_t KvOffset(const KVCacheShape& shape, int64_t block,
+SCA_HDI int64_t KvOffset(const KVCacheShape& shape, int64_t block,
                                                      int64_t offset_in_block, int64_t kv_head,
                                                      int64_t d) {
     return (((block * shape.block_size + offset_in_block) * shape.num_kv_heads + kv_head) *
@@ -32,7 +38,7 @@ __host__ __device__ __forceinline__ int64_t KvOffset(const KVCacheShape& shape, 
 }
 
 // Number of elements of one layer (K or V).
-__host__ __device__ __forceinline__ int64_t KvLayerElements(const KVCacheShape& shape) {
+SCA_HDI int64_t KvLayerElements(const KVCacheShape& shape) {
     return shape.num_blocks * shape.block_size * shape.num_kv_heads * shape.head_dim;
 }
 

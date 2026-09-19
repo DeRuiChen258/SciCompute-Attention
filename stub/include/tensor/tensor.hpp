@@ -2,6 +2,8 @@
 
 // STUB-mode tensor: host memory, contiguous only. Semantics intentionally minimal.
 
+#include <algorithm>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -56,6 +58,16 @@ public:
     size_t num_bytes() const { return bytes_; }
     bool is_contiguous() const { return true; }
 
+    // Minimal copy surface used by the KV cache host code in STUB builds.
+    void copy_from(const void* source, size_t bytes) {
+        if (data_ != nullptr && source != nullptr) std::memcpy(data_, source, bytes);
+    }
+    void copy_from(const Tensor& other) {
+        if (data_ != nullptr && other.data_ != nullptr) {
+            std::memcpy(data_, other.data_, std::min(bytes_, other.bytes_));
+        }
+    }
+
 private:
     void Release() {
         if (owns_ && data_ != nullptr && device_ != nullptr) device_->deallocate(data_);
@@ -82,4 +94,3 @@ private:
 };
 
 }  // namespace sci
-

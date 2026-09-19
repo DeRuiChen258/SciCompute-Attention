@@ -11,6 +11,8 @@
 
 namespace sci {
 
+class Stream;  // defined in device/stream.hpp
+
 class Device {
 public:
     virtual ~Device() = default;
@@ -26,9 +28,15 @@ public:
     }
     virtual void memset(void* ptr, int value, size_t bytes) = 0;
     virtual void synchronize() = 0;
+    // Signature matches the upstream Device::copy_async(dst, src, bytes, Stream&).
+    virtual void copy_async(void* dst, const void* src, size_t bytes, Stream& stream);
     virtual size_t total_memory() const { return 0; }
     virtual size_t free_memory() const { return 0; }
 };
+
+inline void Device::copy_async(void* dst, const void* src, size_t bytes, Stream&) {
+    std::memcpy(dst, src, bytes);
+}
 
 // Process-wide host device used by STUB builds.
 inline Device& StubHostDevice() {
@@ -54,4 +62,3 @@ inline Device& StubHostDevice() {
 }
 
 }  // namespace sci
-

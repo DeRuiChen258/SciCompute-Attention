@@ -36,6 +36,8 @@ if(SCI_ATTENTION_HAVE_CUDA)
     )
 else()
     list(APPEND SCI_ATTENTION_HOST_SOURCES runtime/device_probe_stub.cpp)
+    list(APPEND SCI_ATTENTION_HOST_SOURCES kv_cache/kv_cache_kernels_stub.cpp)
+    list(APPEND SCI_ATTENTION_HOST_SOURCES backends/backends_stub.cpp)
 endif()
 
 if(SCI_ATTENTION_HAVE_CUDA)
