@@ -6,7 +6,7 @@
 
 ## Objective
 
-在 `/home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention` 从零构建 SciCompute-Attention：
+在 `$SCA_ROOT` 从零构建 SciCompute-Attention：
 面向大模型训练与推理的 GPU 原生高性能 Attention 基础设施，以 FlashAttention、KV Cache、Decode Attention 为核心，
 向 vLLM(C++) Serving 与 RLHF Rollout 提供统一的 Attention Runtime。
 
@@ -28,7 +28,7 @@
 
 - 硬件：RTX 5070 Laptop（sm_120，36 SM，smem/SM 102400 B，regs/SM 65536，threads/SM 1536，L2 32 MiB，显存 8177909760 B）。
 - CUDA 13.2（V13.2.86）；宿主 C++20、CUDA C++17；CMake 3.31.6（提示词记录为 4.4.0-rc1，差异见 `docs/env_report.md`）。
-- Python 通道固定为 `cuda_132` 环境：`/home/violet/Workspace/miniconda/envs/cuda_132/bin/python`（3.12.13 / torch 2.13.0+cu132 / triton 3.7.1）。
+- Python 通道固定为 `cuda_132` 环境：`${SCA_PYTHON:-python3}`（3.12.13 / torch 2.13.0+cu132 / triton 3.7.1）。
 - 禁止 wgmma / tcgen05（sm_120 ptxas 实测拒绝）；禁止硬编码 `sm_120` 与 CUDA 安装路径。
 - 禁止修改 `SciComputeInfra` / `vllm` / `RLHF` 三个上游仓库（只读 + `upstream/notes.md` 登记）。
 - 显存 8 GB 硬约束：任何 benchmark 前必须做显存预算检查，禁止与 Ollama（约 4882 MiB）并发压满。

@@ -14,7 +14,7 @@
 你是资深 CUDA / LLM Infra 工程师 Agent。你的任务是在：
 
 ```text
-/home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention
+$SCA_ROOT
 ```
 
 从零构建 **SciCompute-Attention**：一个具有明确分层、可编译、可测试、可 benchmark、可 profiling、可被 vLLM(C++) 与 RLHF Rollout 集成的 Attention 子系统。
@@ -72,17 +72,17 @@
 | CUDA Toolkit       | 13.2（`nvcc V13.2.86`）                                                                                                             | `nvcc --version`                                                                                   |
 | 宿主编译器              | g++ 15.2.0                                                                                                                        | `g++ --version`                                                                                    |
 | CMake              | 4.4.0-rc1                                                                                                                         | `cmake --version`                                                                                  |
-| Python（项目环境）       | 3.12.13（conda env `cuda_132`）                                                                                                     | `/home/violet/Workspace/miniconda/envs/cuda_132/bin/python -V`                                     |
+| Python（项目环境）       | 3.12.13（conda env `cuda_132`）                                                                                                     | `${SCA_PYTHON:-python3} -V`                                     |
 | PyTorch（项目环境）      | 2.13.0+cu132（`torch.cuda.is_available()==True`，`torch.version.cuda==13.2`）                                                        | 同上 `-c "import torch..."`                                                                          |
 | **Triton（项目环境）**   | **3.7.1**（本机 sm_120 上可正常 JIT 编译并运行）                                                                                               | `.../cuda_132/bin/python -c "import triton; print(triton.__version__)"`                            |
 | pybind11           | 3.1.0                                                                                                                             | `.../cuda_132/bin/python -c "import pybind11; print(pybind11.__version__)"`                        |
 | pytest             | 9.1.1                                                                                                                             | `.../cuda_132/bin/python -c "import pytest; print(pytest.__version__)"`                            |
 | ninja              | 可用（Triton JIT 需要）                                                                                                                 | `.../cuda_132/bin/python -c "import importlib.util as u; print(u.find_spec('ninja') is not None)"` |
 | GoogleTest         | 1.17.0（`libgtest-dev`）                                                                                                            | `dpkg -l \| grep gtest`                                                                            |
-| Google Benchmark   | 系统未安装；vcpkg 已构建（`/home/violet/Workspace/IDE/vcpkg-2026.06.01/packages/benchmark_x64-linux/share/benchmark/benchmarkConfig.cmake`） | `find / -name benchmarkConfig.cmake`                                                               |
+| Google Benchmark   | 系统未安装；vcpkg 已构建（`$SCA_BENCHMARK_PREFIX/share/benchmark/benchmarkConfig.cmake`） | `find / -name benchmarkConfig.cmake`                                                               |
 | Python vLLM        | **未安装**（`import vllm` → ModuleNotFoundError）                                                                                      | `python3 -c "import vllm"`                                                                         |
-| 本机 vLLM            | 是 **C++ 实现**：`/home/violet/Workspace/Code/Project/RL_infra/vllm`                                                                  | 目录结构                                                                                               |
-| 真实模型               | `/home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8`（GGUF Q8_0，4.28 GB，qwen3 架构，36 层 / H_q=32 / H_kv=8 / D=128，见 §23）    | 目录 + `/api/show`                                                                                   |
+| 本机 vLLM            | 是 **C++ 实现**：`$SCA_VLLM_ROOT`                                                                  | 目录结构                                                                                               |
+| 真实模型               | `$SCA_MODEL_DIR`（GGUF Q8_0，4.28 GB，qwen3 架构，36 层 / H_q=32 / H_kv=8 / D=128，见 §23）    | 目录 + `/api/show`                                                                                   |
 | 模型服务               | Ollama 用户级 server `http://127.0.0.1:11435`（tag `qwen3:4b-thinking-2507-q8_0`，GPU 占用 ≈ 4882 MiB）                                   | `serve.sh` / `/api/ps`                                                                             |
 
 **结论**：单卡、无 NVLink、无 MIG、显存受限（8 GB）。所有 kernel 与 KV Cache 设计必须把「显存上限检查」当作一等公民，而不是事后补丁。
@@ -90,7 +90,7 @@
 **Python 环境陷阱（必须遵守）**：默认 shell 的 `python3` 解析到 `unitree_rt` 环境（Python 3.12.9 / torch 2.14.0+cu130 / triton 3.8.0），与本项目环境**不一致**。本项目所有 Python 相关命令必须使用 `cuda_132`：
 
 ```bash
-conda activate cuda_132          # 或显式使用 /home/violet/Workspace/miniconda/envs/cuda_132/bin/python
+conda activate cuda_132          # 或显式使用 ${SCA_PYTHON:-python3}
 python -c "import torch, triton; print(torch.__version__, triton.__version__)"   # 期望：2.13.0+cu132 3.7.1
 ```
 
@@ -132,7 +132,7 @@ python -c "import torch, triton; print(torch.__version__, triton.__version__)"  
 
 ### 2.1 上游 SciComputeInfra（必须先读、优先复用）
 
-路径：`/home/violet/Workspace/Code/Project/RL_infra/SciComputeInfra`
+路径：`$SCA_INFRA_ROOT`
 
 已核实的工程事实：
 
@@ -154,7 +154,7 @@ python -c "import torch, triton; print(torch.__version__, triton.__version__)"  
 
 ### 2.2 上游 vLLM（C++）现状
 
-路径：`/home/violet/Workspace/Code/Project/RL_infra/vllm`
+路径：`$SCA_VLLM_ROOT`
 
 | 文件                                             | 现状                                                                                                                                                                                   |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -216,19 +216,19 @@ python3 -c "import torch;print(torch.cuda.get_device_properties(0))"
 python3 -c "import pybind11;print(pybind11.__version__)"
 
 # 1) 上游资产清点
-cd /home/violet/Workspace/Code/Project/RL_infra/SciComputeInfra
+cd $SCA_INFRA_ROOT
 rg --files -g '!build*' | sort
 rg -n "flash_attention|scaled_dot_product|attention" --glob '!build*' -S .
 cat CMakeLists.txt src/CMakeLists.txt src/bridges/CMakeLists.txt
 
 # 2) vLLM(C++) 资产清点
-cd /home/violet/Workspace/Code/Project/RL_infra/vllm
+cd $SCA_VLLM_ROOT
 git log -1 --format='%H %ad %s'
 rg --files include/vllm src/attention src/layers | sort
 cat include/vllm/attention/*.hpp include/vllm/memory/kv_cache.hpp
 
 # 3) RLHF 侧接口清点
-cd /home/violet/Workspace/Code/Project/RL_infra/RLHF
+cd $SCA_RLHF_ROOT
 rg --files rlhf | sort
 rg -n "rollout|kv_cache|attention" rlhf/rollout CMakeLists.txt | head -50
 
@@ -241,8 +241,8 @@ print("sdpa avail:", F.scaled_dot_product_attention is not None)
 PY
 
 # 5) 真实模型资产清点（Qwen3-4B-Thinking-2507-Q8）
-ls -la /home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8
-sha256sum /home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8/Qwen3-4B-Thinking-2507-Q8_0.gguf | head -1
+ls -la $SCA_MODEL_DIR
+sha256sum $SCA_MODEL_DIR/Qwen3-4B-Thinking-2507-Q8_0.gguf | head -1
 curl -s --max-time 5  http://127.0.0.1:11435/api/version
 curl -s --max-time 10 http://127.0.0.1:11435/api/show \
   -d '{"model":"qwen3:4b-thinking-2507-q8_0"}' | python3 -c \
@@ -288,7 +288,7 @@ RLHF:
 
 ```text
                         RLHF / Rollout（业务层）
-                        /home/violet/.../RL_infra/RLHF
+                        $HOME/.../RL_infra/RLHF
                         project(mini-rlhf-stack)  targets: rlhf_core, rlhf_cuda,
                                                   rollout_server, train_ppo
                                     │
@@ -296,7 +296,7 @@ RLHF:
                                     │ ② GPUActor::rollout(prompts)  → 需要 Attention + KV Cache
                                     ▼
                         vLLM(C++)（服务层 / 本次集成目标）
-                        /home/violet/.../RL_infra/vllm
+                        $HOME/.../RL_infra/vllm
                         project(vllm-cpp)  targets: vllm::vllm, vllm_server
                                     │
                                     │ ③ vllm::flash_attention_forward(FlashAttentionParams)
@@ -311,14 +311,14 @@ RLHF:
                                     │ ⑤ 复用 Tensor/Device/Stream/Memory/Benchmark
                                     ▼
                         SciComputeInfra（基础设施层）
-                        /home/violet/.../RL_infra/SciComputeInfra
+                        $HOME/.../RL_infra/SciComputeInfra
                         project(SciComputeInfra)  targets: sci_core, sci_memory,
                         sci_tensor, sci_scheduler, sci_bridges, sci_compute
 ```
 
 依赖方向硬规则：
 
-> 真实负载来源：`/home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8`（Qwen3-4B-Thinking-2507 Q8_0 GGUF，
+> 真实负载来源：`$SCA_MODEL_DIR`（Qwen3-4B-Thinking-2507 Q8_0 GGUF，
 > 36 层 / H_q=32 / H_kv=8 / D=128 / causal），本项目的真实 shape、真实权重与服务基线均取自该模型，详见 §23。
 
 ```text
@@ -373,9 +373,9 @@ SciComputeInfra → 禁止依赖本项目/vLLM/RLHF
 3. 每个 Phase 的验证命令必须能独立执行，且路径写绝对路径，例如：
 
 ```bash
-cmake -S /home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention -B build \
+cmake -S $SCA_ROOT -B build \
       -DCMAKE_BUILD_TYPE=Release \
-      -DSCI_ATTENTION_SCICOMPUTE_INFRA_ROOT=/home/violet/Workspace/Code/Project/RL_infra/SciComputeInfra \
+      -DSCI_ATTENTION_SCICOMPUTE_INFRA_ROOT=$SCA_INFRA_ROOT \
       -DSCI_ATTENTION_BUILD_TESTS=ON
 ```
 
@@ -750,7 +750,7 @@ set(SCI_ATTENTION_INFRA_MODE "SOURCE" CACHE STRING "SOURCE|PACKAGE|STUB")
 | 依赖               | 查找方式                                                                                                                              | 缺失行为                                   |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | GTest            | `find_package(GTest QUIET)`                                                                                                       | 关闭测试目标并打印提示（不静默）                       |
-| Google Benchmark | `find_package(benchmark QUIET)`；支持 `-DCMAKE_PREFIX_PATH=/home/violet/Workspace/IDE/vcpkg-2026.06.01/packages/benchmark_x64-linux` | 关闭对应目标；本项目自带 `bench_export.hpp` 仍可单独编译 |
+| Google Benchmark | `find_package(benchmark QUIET)`；支持 `-DCMAKE_PREFIX_PATH=$SCA_BENCHMARK_PREFIX` | 关闭对应目标；本项目自带 `bench_export.hpp` 仍可单独编译 |
 | pybind11         | `find_package(pybind11 QUIET)`，失败则 `python3 -m pybind11 --cmakedir`                                                               | 关闭 Python 模块并打印可用安装命令                  |
 | Python           | `find_package(Python3 COMPONENTS Interpreter Development.Module)`                                                                 | 同上                                     |
 | Nsight           | 不参与构建，仅脚本检测                                                                                                                       | 脚本内 `command -v ncu/nsys` 检查并给出提示      |
@@ -2095,12 +2095,12 @@ TFLOPS   = FLOPs / latency
 ### 12.5 复现命令模板（必须写入 README 与报告）
 
 ```bash
-SHA=$(git -C /home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention rev-parse --short HEAD)
-OUT=/home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention/benchmarks/results/$(date +%F)-${SHA}
+SHA=$(git -C $SCA_ROOT rev-parse --short HEAD)
+OUT=$SCA_ROOT/benchmarks/results/$(date +%F)-${SHA}
 mkdir -p "${OUT}"
 ./build/benchmarks/benchmark_flash --suite main --seed 1234 --runs 100 --warmup 20 \
   --json "${OUT}/flash.json" --csv "${OUT}/flash.csv"
-python3 /home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention/benchmarks/benchmark_sdpa.py \
+python3 $SCA_ROOT/benchmarks/benchmark_sdpa.py \
   --suite main --seed 1234 --json "${OUT}/sdpa.json"
 ```
 
@@ -2238,7 +2238,7 @@ Q10 CUDA kernel 与 Triton kernel 在同一 shape 下的算术强度相同、性
 ### 15.1 目标与边界
 
 ```text
-目标仓库：/home/violet/Workspace/Code/Project/RL_infra/vllm     （project(vllm-cpp VERSION 0.1.0)）
+目标仓库：$SCA_VLLM_ROOT     （project(vllm-cpp VERSION 0.1.0)）
 目标库目标：vllm::vllm（STATIC） + 可执行 vllm_server
 集成方式：本项目提供独立适配层目标 sci_attention_vllm_adapter，链接 vllm::vllm 与本项目
 硬边界：不修改上游 src/attention/*；如需 hook，只提供补丁文件并由用户决定是否应用
@@ -2353,7 +2353,7 @@ CMake: -DSCI_ATTENTION_BUILD_VLLM_ADAPTER=ON -DSCI_ATTENTION_VLLM_ROOT=../vllm
 ### 16.2 上游现状（只读，必须写入 `docs/rollout_interface.md`）
 
 ```text
-仓库：/home/violet/Workspace/Code/Project/RL_infra/RLHF   project(mini-rlhf-stack VERSION 0.1.0)
+仓库：$SCA_RLHF_ROOT   project(mini-rlhf-stack VERSION 0.1.0)
 目标：rlhf_core（STATIC）、rlhf_cuda（STATIC）、rollout_server（EXE）、train_ppo（EXE）
 接口：
   rlhf::RolloutServer { RolloutResult serve(const std::vector<std::string>& prompts);
@@ -2426,7 +2426,7 @@ batch_utilization   = 实际参与计算的序列数 / max_num_seqs
 
 ```bash
 for repo in SciComputeInfra SciCompute-Attention vllm RLHF; do
-  printf '%-22s %s\n' "$repo" "$(git -C /home/violet/Workspace/Code/Project/RL_infra/$repo rev-parse HEAD 2>/dev/null || echo NA)"
+  printf '%-22s %s\n' "$repo" "$(git -C $HOME/Workspace/Code/Project/RL_infra/$repo rev-parse HEAD 2>/dev/null || echo NA)"
 done
 ```
 
@@ -2733,7 +2733,7 @@ DoD：
   [ ] 真实 shape benchmark（prefill ≤4096 / decode ≤8192）落盘，并含显存与 ollama_running 标记
   [ ] Ollama 基线采集完成，文档明确「注意力层 vs 完整模型服务」边界
 验证：
-  conda run -n cuda_132 python tools/model_probe.py --gguf /home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8/Qwen3-4B-Thinking-2507-Q8_0.gguf
+  conda run -n cuda_132 python tools/model_probe.py --gguf $SCA_MODEL_DIR/Qwen3-4B-Thinking-2507-Q8_0.gguf
   conda run -n cuda_132 python tools/dump_qwen3_qkv.py --layers 0-3 --out tests/data/qwen3_4b/
   conda run -n cuda_132 python -m pytest python/tests/test_qwen3_parity.py -v
 commit: "feat: integrate qwen3-4b gguf model shapes and weights"
@@ -2910,7 +2910,7 @@ Process Records  : TASK.md + .agent/{state,decisions,memory,failures}.md
 
 | 项              | 值                                                                                              | 来源                                   |
 | -------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------ |
-| 目录             | `/home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8`                                  | 目录清单                                 |
+| 目录             | `$SCA_MODEL_DIR`                                  | 目录清单                                 |
 | 权重文件           | `Qwen3-4B-Thinking-2507-Q8_0.gguf`（4,280,404,960 B ≈ 4.28 GB）                                  | 目录清单                                 |
 | sha256         | `012aa2736c32b7b74c3ca7b2da181b9e1d24a3973abf5510dee5590b27445440`                             | 模型 README                            |
 | GGUF 版本 / 张量数  | version 3 / 398 tensors                                                                        | 模型 README                            |
@@ -2992,8 +2992,8 @@ B=1, H_q=32, H_kv=8, D=128, group_size=4, causal=True
   3) 禁止「两者同时压满显存」后运行 benchmark 并声明数据有效
 命令：
   curl -s http://127.0.0.1:11435/api/ps
-  /home/violet/Application/ollama/bin/ollama stop qwen3:4b-thinking-2507-q8_0
-  cd /home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8 && ./serve.sh
+  $SCA_OLLAMA_BIN stop qwen3:4b-thinking-2507-q8_0
+  cd $SCA_MODEL_DIR && ./serve.sh
 记录要求：每条结果必须包含 "gpu_mem_free_before_mb" 与 "ollama_running": true/false
 ```
 
@@ -3161,11 +3161,11 @@ memory_clock_rate=12001000 kHz  memory_bus_width=128  warp_size=32  max_threads_
 ### C.3 三仓关键路径速查
 
 ```text
-SciComputeInfra : /home/violet/Workspace/Code/Project/RL_infra/SciComputeInfra
-vLLM(C++)       : /home/violet/Workspace/Code/Project/RL_infra/vllm
-RLHF            : /home/violet/Workspace/Code/Project/RL_infra/RLHF
-本项目          : /home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention
-真实模型        : /home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8（GGUF Q8_0, qwen3, 36L/32H/8KV/D128）
+SciComputeInfra : $SCA_INFRA_ROOT
+vLLM(C++)       : $SCA_VLLM_ROOT
+RLHF            : $SCA_RLHF_ROOT
+本项目          : $SCA_ROOT
+真实模型        : $SCA_MODEL_DIR（GGUF Q8_0, qwen3, 36L/32H/8KV/D128）
 模型服务        : http://127.0.0.1:11435（Ollama，tag qwen3:4b-thinking-2507-q8_0，启动：./serve.sh）
 vLLM 关键头文件 : include/vllm/attention/{attention_backend,flash_attention,paged_attention}.hpp, include/vllm/memory/kv_cache.hpp
 RLHF 关键文件   : rlhf/rollout_server.h, rlhf/rollout/{actor,gpu_actor,kv_cache}.h, rlhf/cuda_ops/*

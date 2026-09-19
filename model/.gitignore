@@ -1,0 +1,7 @@
+# Weights and the local model library never enter git (see model/README.md §4).
+*.gguf
+*.safetensors
+*.bin
+.ollama/
+*.log
+

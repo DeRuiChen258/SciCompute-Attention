@@ -7,7 +7,7 @@
 
 | 项 | 实测值 | 证据 |
 | --- | --- | --- |
-| OS / Kernel | `Linux violet-ThinkBook-16p-G6-AFR 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug 1 04:26:38 UTC 2026 x86_64` | `uname -a` |
+| OS / Kernel | `Linux <host> 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug 1 04:26:38 UTC 2026 x86_64` | `uname -a` |
 | GPU | `NVIDIA GeForce RTX 5070 Laptop GPU`，driver `615.71.09` | `nvidia-smi --query-gpu=...` |
 | 显存 | 8151 MiB 报告值 / 8,177,909,760 B 精确值（采集时 used 65 MiB） | `nvidia-smi` + `torch.cuda.get_device_properties(0)` |
 | Compute Capability | 12.0（`sm_120`） | 同上 |
@@ -19,19 +19,19 @@
 | CUDA Toolkit | 13.2（`V13.2.86`） | `nvcc --version` |
 | 宿主编译器 | g++ 15.2.0 | `g++ --version` |
 | CMake | **3.31.6** | `cmake --version` |
-| Python（项目通道） | 3.12.13 | `/home/violet/Workspace/miniconda/envs/cuda_132/bin/python -V` |
+| Python（项目通道） | 3.12.13 | `${SCA_PYTHON:-python3} -V` |
 | PyTorch | 2.13.0+cu132，`cuda_available=True` | 同上 |
 | Triton | 3.7.1 | 同上 |
 | pybind11 / pytest / ninja | 3.1.0 / 9.1.1 / 可用 | 同上 |
 | GoogleTest | 已安装（`libgtest-dev`，dpkg 命中 1 项） | `dpkg -l \| grep -c gtest` |
-| Google Benchmark | vcpkg 预构建（`/home/violet/Workspace/IDE/vcpkg-2026.06.01/packages/benchmark_x64-linux`） | 目录存在 |
+| Google Benchmark | vcpkg 预构建（`$SCA_BENCHMARK_PREFIX`） | 目录存在 |
 | Python vLLM | 未安装 | `import vllm` 失败（结论：集成对象是本机 C++ vLLM） |
 
 **Python 通道陷阱（必须遵守）**：默认 shell 的 `python3` 指向 `unitree_rt`（torch 2.14.0+cu130 / triton 3.8.0），
 与本项目环境不一致。本项目全部 Python 命令使用：
 
 ```bash
-/home/violet/Workspace/miniconda/envs/cuda_132/bin/python
+${SCA_PYTHON:-python3}
 ```
 
 ## 2. ISA 探针（复跑，运行时校验）
@@ -39,7 +39,7 @@
 复现命令：
 
 ```bash
-bash /home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention/tools/arch_probe/run_probe.sh
+bash $SCA_ROOT/tools/arch_probe/run_probe.sh
 # 原始输出：profiling/reports/arch_probe.log
 # JSON     ：profiling/reports/arch_probe.json
 # wgmma    ：profiling/reports/wgmma_probe.log

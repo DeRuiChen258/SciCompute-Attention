@@ -1,0 +1,66 @@
+{
+  "service": {
+    "host": "127.0.0.1:11435",
+    "model": "qwen3:4b-thinking-2507-q8_0",
+    "version": "0.32.6",
+    "available_models": [
+      "qwen3:4b-thinking-2507-q8_0"
+    ],
+    "loaded_models": [
+      {
+        "name": "qwen3:4b-thinking-2507-q8_0",
+        "size_vram_mib": 4731.4
+      }
+    ],
+    "reachable": true
+  },
+  "timestamp": "2026-09-19T08:16:24+0800",
+  "gpu": {
+    "available": true,
+    "name": "NVIDIA GeForce RTX 5070 Laptop GPU",
+    "memory_used_mib": 4952,
+    "memory_total_mib": 8151,
+    "utilization_pct": 10
+  },
+  "scope_note": "full model service baseline (Ollama); NOT this project's attention kernel performance - see docs/model_integration.md \u00a76",
+  "runs": [
+    {
+      "run": 0,
+      "wall_ms": 2543.982,
+      "load_ms": 105.549,
+      "prompt_eval_count": 30,
+      "prompt_eval_ms": 23.583,
+      "eval_count": 128,
+      "eval_ms": 2403.971,
+      "tokens_per_second": 53.25,
+      "total_ms": 2541.973,
+      "done_reason": "length",
+      "answer_preview": ""
+    },
+    {
+      "run": 1,
+      "wall_ms": 2531.186,
+      "load_ms": 104.545,
+      "prompt_eval_count": 30,
+      "prompt_eval_ms": 18.899,
+      "eval_count": 128,
+      "eval_ms": 2395.427,
+      "tokens_per_second": 53.44,
+      "total_ms": 2528.844,
+      "done_reason": "length",
+      "answer_preview": ""
+    }
+  ],
+  "summary": {
+    "tokens_per_second_mean": 53.34,
+    "prompt_eval_ms_mean": 21.241,
+    "wall_ms_mean": 2537.584
+  },
+  "gpu_after": {
+    "available": true,
+    "name": "NVIDIA GeForce RTX 5070 Laptop GPU",
+    "memory_used_mib": 4952,
+    "memory_total_mib": 8151,
+    "utilization_pct": 93
+  }
+}

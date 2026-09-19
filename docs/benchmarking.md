@@ -92,8 +92,8 @@ name,case_id,warmup,runs,mean_ms,median_ms,std_ms,p50_ms,p90_ms,p95_ms,p99_ms,tf
 ## 5. 复现命令模板
 
 ```bash
-SHA=$(git -C /home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention rev-parse --short HEAD)
-OUT=/home/violet/Workspace/Code/Project/RL_infra/SciCompute-Attention/benchmarks/results/$(date +%F)-${SHA}
+SHA=$(git -C $SCA_ROOT rev-parse --short HEAD)
+OUT=$SCA_ROOT/benchmarks/results/$(date +%F)-${SHA}
 mkdir -p "${OUT}"
 
 # 0) 记录 GPU 状态

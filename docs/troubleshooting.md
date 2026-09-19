@@ -61,7 +61,7 @@
 
 ```text
 [python3 解析到 unitree_rt] → 本项目所有 Python 命令必须用
-  /home/violet/Workspace/miniconda/envs/cuda_132/bin/python（torch 2.13.0+cu132 / triton 3.7.1）
+  ${SCA_PYTHON:-python3}（torch 2.13.0+cu132 / triton 3.7.1）
 [Ollama 占用 4.9 GiB] → 显存敏感实验前确认 /api/ps 不可达或先 stop
 ```
 

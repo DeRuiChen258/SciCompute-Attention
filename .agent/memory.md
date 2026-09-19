@@ -7,7 +7,7 @@
 
 ### M-002 Python 通道必须显式指定
 - 默认 shell 的 `python3` 解析到 `unitree_rt`（torch 2.14.0+cu130 / triton 3.8.0），与本项目环境不一致。
-- 本项目统一用 `/home/violet/Workspace/miniconda/envs/cuda_132/bin/python`。
+- 本项目统一用 `${SCA_PYTHON:-python3}`。
 
 ### M-003 Triton 侧两条硬约束（实测）
 - 动态 smem 上限 101,376 B：`BM=64,D=128,stages=2` 需要 106,496 B → `OutOfResources`。

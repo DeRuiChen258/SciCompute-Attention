@@ -7,7 +7,7 @@
 
 | 项 | 值 | 来源 |
 | --- | --- | --- |
-| 目录 / 权重 | `/home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8/Qwen3-4B-Thinking-2507-Q8_0.gguf`（4,280,404,960 B） | 目录清单 |
+| 目录 / 权重 | `$SCA_MODEL_DIR/Qwen3-4B-Thinking-2507-Q8_0.gguf`（4,280,404,960 B） | 目录清单 |
 | GGUF 版本 / 张量数 | 3 / 398 | `tools/gguf_reader.py` |
 | 架构 / 量化 | `qwen3` / file_type 7（Q8_0） | GGUF 元数据 |
 | 参数量 | 4,022,468,096 | GGUF `general.parameter_count` |
@@ -97,5 +97,31 @@ decode  : B=1, Hq=32, Hkv=8, D=128, causal, S_q=1, S_kv ∈ {1024,4096,8192}
 | KV 预算表 | 完成 | 147,456 B/token，与 §23.2 一致 |
 | 真实 shape benchmark | 完成 | prefill S=2048 / decode S_kv=4096（见 §4） |
 | 真实权重 Q/K/V parity | 未完成 | 需要逐层反量化 + RoPE 前向；`tools/dump_qwen3_qkv.py` 未实现，属 Roadmap；复现路径已在 F-005 记录 |
-| Ollama 服务基线 | 未采集 | 采集时服务未运行（`/api/version` 不可达），`tools/ollama_baseline.py` 待补 |
+| Ollama 服务基线 | **已完成** | `tools/ollama_baseline.py` 实测：53.34 tok/s（128 token × 2 次），服务 VRAM 4952 MiB；落盘 `docs/results/ollama_baseline.json` |
 
+## 8. 本地服务连通与基线（实测）
+
+```bash
+# 启动（模型库指向模型目录，端口默认 11435）
+SCA_MODEL_DIR=/path/to/Qwen3-4B-Thinking-2507-Q8 \
+SCA_OLLAMA_MODEL=qwen3:4b-thinking-2507-q8_0 bash scripts/serve_model.sh
+
+# 连通性检查 / 基线采集
+python tools/ollama_baseline.py --check
+python tools/ollama_baseline.py --max-tokens 128 --runs 2 --json docs/results/ollama_baseline.json
+```
+
+| 指标 | 实测值 | 证据 |
+| --- | --- | --- |
+| 服务版本 / 模型 tag | Ollama 0.32.6 / `qwen3:4b-thinking-2507-q8_0` | `/api/version`、`/api/tags` |
+| 首次加载 | ≈ 2.88 s | `load_duration` |
+| prompt eval（21 token） | 38.1 ms | `prompt_eval_duration` |
+| decode 吞吐 | 53.25 / 53.44 tok/s（两次） | `eval_count / eval_duration` |
+| 服务 VRAM | 4,952 MiB（模型 4,731 MiB） | `nvidia-smi` + `/api/ps` |
+
+**口径边界（再次强调）**：以上是完整模型服务指标；本项目 attention kernel 的实测见
+`docs/results/benchmark_report.md`（flash 在 S=4096 非 causal 下 3.95 ms / 17.4 TFLOPS）。
+两者不可混用，也不可相除得出“加速比”。
+
+> 系统级 Ollama（`/usr/local/bin/ollama`，端口 11434）常见为 **CPU-only**（缺少 runner），
+> 因此本文档统一使用用户级、带 CUDA runner 的安装，并通过 `SCA_OLLAMA_BIN` 指向它。

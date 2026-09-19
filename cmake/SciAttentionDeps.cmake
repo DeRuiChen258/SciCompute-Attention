@@ -17,10 +17,15 @@ endif()
 if(SCI_ATTENTION_BUILD_BENCHMARKS)
     # libbenchmark is not installed system-wide on this machine; the vcpkg build is the source of
     # truth (see docs/env_report.md).
-    set(_sca_vcpkg_benchmark "/home/violet/Workspace/IDE/vcpkg-2026.06.01/packages/benchmark_x64-linux")
     find_package(benchmark QUIET)
-    if(NOT benchmark_FOUND AND EXISTS "${_sca_vcpkg_benchmark}")
-        list(APPEND CMAKE_PREFIX_PATH "${_sca_vcpkg_benchmark}")
+    # Optional local prefix (system install, vcpkg tree, ...). Nothing is assumed about the host:
+    # set -DSCI_ATTENTION_BENCHMARK_PREFIX=<dir> or the SCA_BENCHMARK_PREFIX environment variable.
+    set(_sca_benchmark_prefix "${SCI_ATTENTION_BENCHMARK_PREFIX}")
+    if(DEFINED ENV{SCA_BENCHMARK_PREFIX} AND EXISTS "$ENV{SCA_BENCHMARK_PREFIX}")
+        set(_sca_benchmark_prefix "$ENV{SCA_BENCHMARK_PREFIX}")
+    endif()
+    if(NOT benchmark_FOUND AND _sca_benchmark_prefix AND EXISTS "${_sca_benchmark_prefix}")
+        list(APPEND CMAKE_PREFIX_PATH "${_sca_benchmark_prefix}")
         find_package(benchmark QUIET)
     endif()
     if(benchmark_FOUND)
@@ -53,4 +58,3 @@ if(SCI_ATTENTION_BUILD_PYTHON AND NOT SCI_ATTENTION_INFRA_MODE STREQUAL "STUB")
                        "module disabled. Install with: pip install pybind11")
     endif()
 endif()
-

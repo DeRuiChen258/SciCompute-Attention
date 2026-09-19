@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import urllib.error
@@ -24,10 +25,24 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gguf_reader import read_gguf, tensor_nbytes  # noqa: E402
 
-DEFAULT_GGUF = Path("/home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8/"
-                    "Qwen3-4B-Thinking-2507-Q8_0.gguf")
+# Paths are configuration, not constants: point the probe at any model directory via
+#   SCA_MODEL_DIR=/path/to/Qwen3-4B-Thinking-2507-Q8 python tools/model_probe.py
+_MODEL_DIR_ENV = os.environ.get("SCA_MODEL_DIR", "")
+DEFAULT_GGUF = Path(os.environ.get(
+    "SCA_GGUF_PATH",
+    str(Path(_MODEL_DIR_ENV) / "Qwen3-4B-Thinking-2507-Q8_0.gguf") if _MODEL_DIR_ENV else
+    "Qwen3-4B-Thinking-2507-Q8_0.gguf"))
 DEFAULT_OUT = Path(__file__).resolve().parent.parent / "docs/results/qwen3_4b_shapes.json"
-OLLAMA_HOST = "http://127.0.0.1:11435"
+OLLAMA_HOST = os.environ.get("SCA_OLLAMA_URL",
+                             "http://" + os.environ.get("SCA_OLLAMA_HOST", "127.0.0.1:11435"))
+
+
+def display_path(path: Path) -> str:
+    """Renders a path with the configured model directory replaced by its variable name."""
+    text = str(path)
+    if _MODEL_DIR_ENV and text.startswith(_MODEL_DIR_ENV):
+        return text.replace(_MODEL_DIR_ENV, "$SCA_MODEL_DIR", 1)
+    return text
 
 
 def ollama_status() -> dict:
@@ -114,7 +129,7 @@ def main() -> int:
 
     payload = {
         "model": {
-            "path": str(args.gguf),
+            "path": display_path(args.gguf),
             "file_size_bytes": args.gguf.stat().st_size,
             "gguf_version": gguf.version,
             "tensor_count": len(gguf.tensors),
@@ -172,4 +187,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

@@ -10,7 +10,7 @@ BUILD_DIR="${PROJECT_ROOT}/build"
 FILTER=""
 WITH_PYTHON=0
 SANITIZE=0
-PYTHON_BIN="${SCA_PYTHON:-/home/violet/Workspace/miniconda/envs/cuda_132/bin/python}"
+PYTHON_BIN="${SCA_PYTHON:-python3}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -42,4 +42,3 @@ if [[ "${WITH_PYTHON}" -eq 1 ]]; then
     TRITON_CACHE_DIR="${PROJECT_ROOT}/.triton_cache" \
         "${PYTHON_BIN}" -m pytest "${PROJECT_ROOT}/python/tests" -q
 fi
-

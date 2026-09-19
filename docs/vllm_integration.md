@@ -44,7 +44,7 @@ class KVCache { void* k_ptr(size_t layer, size_t physical_block); ... };
 
 ```bash
 cmake -S . -B build-vllm -DSCI_ATTENTION_BUILD_VLLM_ADAPTER=ON \
-      -DSCI_ATTENTION_VLLM_ROOT=/home/violet/Workspace/Code/Project/RL_infra/vllm
+      -DSCI_ATTENTION_VLLM_ROOT=$SCA_VLLM_ROOT
 ```
 
 回滚：

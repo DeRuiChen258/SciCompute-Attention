@@ -1,0 +1,15 @@
+# Line endings
+* text=auto
+*.cu text
+*.cuh text
+*.hpp text
+*.cpp text
+*.py text
+*.sh text eol=lf
+
+# Model weights are NOT stored in this repository (4.28 GB > GitHub's 100 MiB per-file limit).
+# The patterns below only take effect if you deliberately add weights with a Git LFS data pack;
+# see model/README.md §4 for the exact procedure.
+model/*.gguf filter=lfs diff=lfs merge=lfs -text
+model/*.safetensors filter=lfs diff=lfs merge=lfs -text
+

@@ -1,6 +1,6 @@
 {
   "model": {
-    "path": "/home/violet/Workspace/Code/Model/Qwen3-4B-Thinking-2507-Q8/Qwen3-4B-Thinking-2507-Q8_0.gguf",
+    "path": "$SCA_MODEL_DIR/Qwen3-4B-Thinking-2507-Q8_0.gguf",
     "file_size_bytes": 4280404960,
     "gguf_version": 3,
     "tensor_count": 398,
@@ -1601,16 +1601,18 @@
   "environment": {
     "gpu": {
       "name": "NVIDIA GeForce RTX 5070 Laptop GPU",
-      "memory_used_mib": 65,
+      "memory_used_mib": 4952,
       "memory_total_mib": 8151
     },
     "ollama": {
       "host": "http://127.0.0.1:11435",
-      "reachable": false,
-      "version": null,
-      "loaded_models": [],
-      "vram_mb": null,
-      "error": "timed out"
+      "reachable": true,
+      "version": "0.32.6",
+      "loaded_models": [
+        "qwen3:4b-thinking-2507-q8_0"
+      ],
+      "vram_mb": 4731.4,
+      "vram_bytes": 4961274428
     },
     "ollama_baseline_enabled": true
   }

@@ -18,6 +18,11 @@ set_property(CACHE SCI_ATTENTION_ENABLE_TMA PROPERTY STRINGS ON OFF AUTO)
 set(SCI_ATTENTION_MAX_SMEM_BYTES "102400"
     CACHE STRING "Shared-memory ceiling per block in bytes (defaults to the device value)")
 
+# Optional prefix for a locally built Google Benchmark (e.g. a vcpkg tree). Empty means "rely on
+# the system packages / CMAKE_PREFIX_PATH".
+set(SCI_ATTENTION_BENCHMARK_PREFIX "" CACHE PATH
+    "Prefix containing benchmarkConfig.cmake (optional)")
+
 set(SCI_ATTENTION_ARCH "" CACHE STRING "Target compute capabilities, e.g. \"120\"")
 
 # Defined here (not in SciComputeInfra.cmake) because the top-level project() must know whether it
