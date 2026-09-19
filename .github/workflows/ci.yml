@@ -13,8 +13,20 @@ name: CI
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "model/**"
+      - "Prompt/**"
+      - "LICENSE"
   pull_request:
     branches: ["main"]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "model/**"
+      - "Prompt/**"
+      - "LICENSE"
   workflow_dispatch:
 
 permissions:
@@ -29,13 +41,26 @@ jobs:
     name: CPU build (STUB) + unit tests + tooling
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CCACHE_DIR: /home/runner/.ccache
+      CCACHE_MAXSIZE: 2G
     steps:
       - uses: actions/checkout@v5
 
       - name: Install GoogleTest
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libgtest-dev
+          sudo apt-get install -y --no-install-recommends libgtest-dev ninja-build ccache
+
+      # NOTE: the cache step must come *after* checkout, otherwise hashFiles() sees an empty tree
+      # and every run reuses one constant key.
+      - name: Cache compiler results (ccache)
+        uses: actions/cache@v6
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-stub-ccache-${{ hashFiles('src/**', 'include/**', 'cmake/**', 'CMakeLists.txt', 'tests/**', 'stub/**') }}
+          restore-keys: |
+            ${{ runner.os }}-stub-ccache-
 
       - name: Show toolchain
         run: |
@@ -47,8 +72,10 @@ jobs:
       - name: Configure (STUB, CPU-only)
         run: |
           cmake -S . -B build-stub \
+            -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSCI_ATTENTION_INFRA_MODE=STUB \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSCI_ATTENTION_BUILD_BENCHMARKS=OFF \
             -DSCI_ATTENTION_BUILD_PYTHON=OFF
 
@@ -57,6 +84,9 @@ jobs:
 
       - name: Unit tests
         run: ctest --test-dir build-stub --output-on-failure
+
+      - name: ccache statistics
+        run: ccache --show-stats || true
 
       - name: Python tooling checks
         run: |
@@ -100,15 +130,31 @@ jobs:
     timeout-minutes: 60
     container:
       image: nvidia/cuda:13.2.0-devel-ubuntu24.04
+    env:
+      CCACHE_DIR: /root/.ccache
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPRESS: "true"
+      # Explicit content check: the container image is rebuilt on every run, so timestamp-based
+      # hashing would report bogus cache misses.
+      CCACHE_COMPILERCHECK: content
     steps:
+      - uses: actions/checkout@v5
+
       - name: Install build dependencies
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            cmake git build-essential ca-certificates libgtest-dev
+            cmake ninja-build ccache git build-essential ca-certificates libgtest-dev
           nvcc --version | tail -2
+          ccache --version | head -1
 
-      - uses: actions/checkout@v5
+      - name: Cache compiler results (ccache)
+        uses: actions/cache@v6
+        with:
+          path: /root/.ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('src/**', 'include/**', 'cmake/**', 'CMakeLists.txt', 'tests/**') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
 
       - name: Clone public upstream (SciComputeInfra)
         run: |
@@ -119,15 +165,22 @@ jobs:
       - name: Configure (SOURCE mode, arch pinned, no Werror)
         run: |
           cmake -S . -B build \
+            -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSCI_ATTENTION_SCICOMPUTE_INFRA_ROOT="${GITHUB_WORKSPACE}/../SciComputeInfra" \
             -DSCI_ATTENTION_ARCH=120 \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
             -DSCI_ATTENTION_BUILD_BENCHMARKS=OFF \
             -DSCI_ATTENTION_BUILD_EXAMPLES=OFF \
             -DSCI_ATTENTION_BUILD_PYTHON=OFF
 
       - name: Build kernels and tests
         run: cmake --build build -j"$(nproc)"
+
+      - name: ccache statistics
+        # Non-fatal: a missing/empty cache directory must not fail the job.
+        run: ccache --show-stats --verbose || ccache --show-stats || true
 
       - name: Confirm the flash kernel is in the archive
         run: |
