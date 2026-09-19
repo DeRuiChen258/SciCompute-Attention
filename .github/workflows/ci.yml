@@ -1,0 +1,132 @@
+name: CI
+
+# CMake + CUDA project: there is no MSBuild solution and nothing to restore with NuGet.
+#
+# jobs
+#   cpu-stub    fast gate: builds the API/runtime layer in CPU-only STUB mode, runs the unit tests
+#               and the Python tooling self-checks (no CUDA needed).
+#   cuda-build  compiles every CUDA kernel with the toolkit version used for the published
+#               benchmarks, against the public SciComputeInfra upstream. GitHub runners have no
+#               GPU, so device tests skip themselves; hardware correctness is covered by
+#               `bash scripts/test.sh --sanitize` on a GPU machine.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cpu-stub:
+    name: CPU build (STUB) + unit tests + tooling
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          uname -srm
+          cmake --version | head -1
+          g++ --version | head -1
+          python3 --version
+
+      - name: Configure (STUB, CPU-only)
+        run: |
+          cmake -S . -B build-stub \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSCI_ATTENTION_INFRA_MODE=STUB \
+            -DSCI_ATTENTION_BUILD_BENCHMARKS=OFF \
+            -DSCI_ATTENTION_BUILD_PYTHON=OFF
+
+      - name: Build
+        run: cmake --build build-stub -j"$(nproc)"
+
+      - name: Unit tests
+        run: ctest --test-dir build-stub --output-on-failure
+
+      - name: Python tooling checks
+        run: |
+          python3 -m py_compile \
+            tools/gguf_reader.py tools/model_probe.py tools/ollama_baseline.py \
+            tools/smem_calc.py tools/dispatch_threshold_sweep.py benchmarks/benchmark_sdpa.py
+          python3 tools/smem_calc.py --dtype fp16 --json /tmp/smem.json >/dev/null
+          python3 tools/dispatch_threshold_sweep.py --emit-inc /tmp/dispatch_table.inc --revision r0 >/dev/null
+          grep -q kDispatchThresholds /tmp/dispatch_table.inc
+          bash -n scripts/*.sh profiling/*.sh model/download_model.sh
+
+      - name: GGUF reader self-test (generated fixture)
+        run: |
+          python3 -m pip install --quiet numpy
+          python3 - <<'PY'
+          import struct, pathlib, numpy as np
+          out = pathlib.Path("/tmp/fixture.gguf")
+          with out.open("wb") as fh:
+              fh.write(b"GGUF"); fh.write(struct.pack("<I", 3))
+              fh.write(struct.pack("<Q", 1)); fh.write(struct.pack("<Q", 1))
+              key, value = "general.architecture", "qwen3"
+              fh.write(struct.pack("<Q", len(key))); fh.write(key.encode())
+              fh.write(struct.pack("<I", 8))
+              fh.write(struct.pack("<Q", len(value))); fh.write(value.encode())
+              name = "blk.0.attn_q.weight"
+              fh.write(struct.pack("<Q", len(name))); fh.write(name.encode())
+              fh.write(struct.pack("<I", 2))
+              fh.write(struct.pack("<Q", 2)); fh.write(struct.pack("<Q", 2))
+              fh.write(struct.pack("<I", 0)); fh.write(struct.pack("<Q", 0))
+              fh.write(b"\x00" * ((-fh.tell()) % 32))
+              fh.write(np.arange(4, dtype=np.float32).tobytes())
+          PY
+          python3 tools/gguf_reader.py /tmp/fixture.gguf --meta --list-tensors \
+            --dump-tensor blk.0.attn_q.weight | tee /tmp/gguf_out.json
+          grep -q '"type": "F32"' /tmp/gguf_out.json
+          grep -q '"mean": 1.5' /tmp/gguf_out.json
+
+  cuda-build:
+    name: CUDA 13.2 build + full test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container:
+      image: nvidia/cuda:13.2.0-devel-ubuntu24.04
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends cmake git build-essential ca-certificates
+          nvcc --version | tail -2
+
+      - uses: actions/checkout@v4
+
+      - name: Clone public upstream (SciComputeInfra)
+        run: |
+          git clone --depth 1 \
+            "https://github.com/${{ github.repository_owner }}/SciComputeInfra.git" \
+            "${GITHUB_WORKSPACE}/../SciComputeInfra"
+
+      - name: Configure (SOURCE mode, arch pinned, no Werror)
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSCI_ATTENTION_SCICOMPUTE_INFRA_ROOT="${GITHUB_WORKSPACE}/../SciComputeInfra" \
+            -DSCI_ATTENTION_ARCH=120 \
+            -DSCI_ATTENTION_BUILD_BENCHMARKS=OFF \
+            -DSCI_ATTENTION_BUILD_EXAMPLES=OFF \
+            -DSCI_ATTENTION_BUILD_PYTHON=OFF
+
+      - name: Build kernels and tests
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Confirm the flash kernel is in the archive
+        run: |
+          nm -C build/src/libsci_attention_kernels.a 2>/dev/null | grep -c "flash_fwd_kernel" | tee /tmp/kernel_symbols.txt
+          test "$(cat /tmp/kernel_symbols.txt)" -gt 0
+
+      - name: Test suite (device tests skip without a GPU)
+        run: ctest --test-dir build --output-on-failure -LE sanitize
