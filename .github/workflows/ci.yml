@@ -32,6 +32,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install GoogleTest
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtest-dev
+
       - name: Show toolchain
         run: |
           uname -srm
@@ -99,7 +104,8 @@ jobs:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends cmake git build-essential ca-certificates
+          apt-get install -y --no-install-recommends \
+            cmake git build-essential ca-certificates libgtest-dev
           nvcc --version | tail -2
 
       - uses: actions/checkout@v4

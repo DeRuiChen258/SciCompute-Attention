@@ -14,7 +14,6 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(SciAttentionOptions)
-include(SciAttentionArch)
 
 find_package(Threads REQUIRED)
 
@@ -24,6 +23,10 @@ if(NOT SCI_ATTENTION_INFRA_MODE STREQUAL "STUB")
     find_package(CUDAToolkit REQUIRED)
     set(SCI_ATTENTION_HAVE_CUDA ON)
 endif()
+
+# Architecture detection needs the CUDA language, so it runs after enable_language(); it returns
+# early for CPU-only builds (STUB mode).
+include(SciAttentionArch)
 
 include(SciComputeInfra)
 include(SciAttentionDeps)

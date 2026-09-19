@@ -5,6 +5,14 @@
 #   * refuse targets below sm_80 (mma.sync + cp.async are required);
 #   * export SCI_ATTENTION_ARCH_<NN> definitions so device code can branch at compile time.
 
+# No CUDA language (CPU-only STUB build, or a consumer that disabled CUDA): nothing to detect.
+if(NOT CMAKE_CUDA_COMPILER)
+    set(SCI_ATTENTION_ARCH "" CACHE STRING "Target compute capabilities (CUDA disabled)" FORCE)
+    set(SCI_ATTENTION_ARCH_DEFS "")
+    message(STATUS "SciCompute-Attention: CUDA disabled -> architecture detection skipped")
+    return()
+endif()
+
 if(NOT DEFINED SCI_ATTENTION_ARCH OR SCI_ATTENTION_ARCH STREQUAL "")
     if(DEFINED CMAKE_CUDA_ARCHITECTURES AND NOT CMAKE_CUDA_ARCHITECTURES STREQUAL "")
         set(SCI_ATTENTION_ARCH "${CMAKE_CUDA_ARCHITECTURES}")
@@ -27,9 +35,15 @@ if(NOT DEFINED SCI_ATTENTION_ARCH OR SCI_ATTENTION_ARCH STREQUAL "")
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 ERROR_QUIET)
             string(REGEX MATCHALL "[0-9]+" _sca_arch_numbers "${_sca_arch_list}")
-            list(SORT _sca_arch_numbers COMPARE NATURAL ORDER DESCENDING)
-            list(GET _sca_arch_numbers 0 _sca_top_arch)
-            set(SCI_ATTENTION_ARCH "${_sca_top_arch}")
+            if(_sca_arch_numbers)
+                list(SORT _sca_arch_numbers COMPARE NATURAL ORDER DESCENDING)
+                list(GET _sca_arch_numbers 0 _sca_top_arch)
+                set(SCI_ATTENTION_ARCH "${_sca_top_arch}")
+            else()
+                message(FATAL_ERROR
+                    "SciCompute-Attention: cannot determine a CUDA architecture.\n"
+                    "  Pass -DSCI_ATTENTION_ARCH=<sm number> explicitly, e.g. -DSCI_ATTENTION_ARCH=120")
+            endif()
         endif()
     endif()
 endif()
@@ -53,4 +67,3 @@ set(SCI_ATTENTION_ARCH_DEFS "${_sca_arch_defs}")
 if(NOT SCI_ATTENTION_QUIET)
     message(STATUS "SciCompute-Attention: CUDA architectures = ${SCI_ATTENTION_ARCH}")
 endif()
-
