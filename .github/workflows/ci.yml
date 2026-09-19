@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install GoogleTest
         run: |
@@ -108,7 +108,7 @@ jobs:
             cmake git build-essential ca-certificates libgtest-dev
           nvcc --version | tail -2
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Clone public upstream (SciComputeInfra)
         run: |
